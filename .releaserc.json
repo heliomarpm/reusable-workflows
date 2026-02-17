@@ -1,0 +1,51 @@
+{
+  "branches": [
+    "main",
+    { "name": "release", "prerelease": true },
+    { "name": "develop", "prerelease": false }
+  ],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "releaseRules": [
+          { "breaking": true, "release": "major" },
+          { "type": "refactor!", "release": "major" },
+          { "type": "feat!", "release": "major" },
+          { "type": "feat", "release": "minor" },
+          { "type": "fix", "release": "patch" },
+          { "type": "revert", "release": "patch" },
+          { "type": "perf", "release": "patch" },
+          { "scope": "no-release", "release": false }
+        ],
+        "parserOpts": {
+          "mergePattern": "^Merge pull request #(\\d+) from .+\\n(.+)",
+          "mergeCorrespondence": ["id", "message"],
+          "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES", "BREAKING-CHANGE", "BREAKING-CHANGES"]
+        }
+      }
+    ],
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/changelog", {
+        "changelogFile": "CHANGELOG.md",
+        "changelogTitle": "# 📦 Changelog\n\nAll notable changes to this project will be documented in this file."
+      }
+    ],
+    ["@semantic-release/npm", {"npmPublish": false, "pkgRoot": "."}],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md", "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"],
+        "message": "chore(release): set `package.json` to ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
+        "tag": "${version}"
+      }
+    ],
+    [
+      "@semantic-release/github", {
+        "successComment": "🎉 Release `${nextRelease.version}` publicada com sucesso!",
+        "failComment": "⚠️ Falha ao publicar release, verifique os logs."
+      }
+    ]
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "reusable-workflows",
+  "version": "0.0.1",
+  "description": "Conjunto de GitHub Reusable Workflows para padronizar CI, cobertura, promoção de código e releases automatizados, com suporte a múltiplas stacks.",
+  "author": "Heliomar P. Marques",
+  "license": "MIT",
+  "keywords": [
+    "gh-workflow",
+    "reusable-workflows",
+    "reusable-workflow",
+    "cicd"
+  ],
+  "scripts": {
+    "release:test": "semantic-release --dry-run --no-ci"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^25.0.3"
+  }
+}
