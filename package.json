@@ -4,6 +4,14 @@
   "description": "Conjunto de GitHub Reusable Workflows para padronizar CI, cobertura, promoção de código e releases automatizados, com suporte a múltiplas stacks.",
   "author": "Heliomar P. Marques",
   "license": "MIT",
+  "homepage": "https://github.com/heliomarpm/reusable-workflows#readme",
+  "bugs": {
+    "url": "https://github.com/heliomarpm/reusable-workflows/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heliomarpm/reusable-workflows.git"
+  },
   "keywords": [
     "gh-workflow",
     "reusable-workflows",
