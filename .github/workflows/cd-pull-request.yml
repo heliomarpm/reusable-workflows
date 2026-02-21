@@ -99,7 +99,15 @@ jobs:
         github-token: ${{ secrets.GH_TOKEN }}
         script: |
           const { owner, repo } = context.repo;
-          const sha = context.payload.workflow_run.head_sha;
+
+          // tenta pegar SHA de diferentes contextos 
+          const sha = context.payload?.workflow_run?.head_sha || context.payload?.pull_request?.head?.sha || context.payload?.after || context.sha; 
+
+          if (!sha) { 
+            core.setOutput("status", "missing"); 
+            console.log("⚠️ Nenhum SHA encontrado no contexto"); 
+            return; 
+          }
 
           const checks = await github.rest.checks.listForRef({
             owner,
