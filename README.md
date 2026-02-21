@@ -96,13 +96,13 @@ jobs:
 | `coverage_base_branch`      | Base branch para cobertura comparativa (`decrease` mode) 
 | `coverage_strategy`         | Não falha pipeline em erro de teste 
 | `coverage_command`          | Comando para calcular cobertura 
-| `coverage_mode`             | `info` / `block` / `decrease` (padrão: `info`)
+| `coverage_strict_mode`      | `info` / `block` / `decrease` (padrão: `info`)
 | `coverage_min`              | Percentual mínimo de cobertura (padrão: `80`)
 | `coverage_continue_on_failure` | Continua pipeline se os testes falharem
 
 > `*` Em desenvolvimento
 
-**Estratécias de Cobertura (`coverage_mode`)**
+**Modo Estrito de Cobertura (`coverage_strict_mode`)**
 
 | Estratégia  | Comportamento            
 | ----        | ----
@@ -138,7 +138,7 @@ jobs:
 <!--
 | `prefix_release_branch`       | Prefixo da branch de release (padrão: `release-`)
 | `promotion_strategy`          | Estratégia de promoção (`trunk` / `develop` / `gitflow`)
-| `strict_conventional_commits` | Ativa o modo strict (utilizado se promotion_strategy = release-branch)
+| `commit_strict_mode` | Ativa o modo strict (utilizado se promotion_strategy = release-branch)
 
 **Estratégias de promoção (`promotion_strategy`)**
 
@@ -165,12 +165,12 @@ jobs:
 
 **Inputs principais**
 
-| Inputs                        | Descrição
-| ----                          | ----
-| `stack`                       | `node` / `php`* / `dotnet`* / `python`* / `go`*
-| `project_path`                | Caminho do código fonte (padrão: `.`)
-| `dry_run`                     | Ativa o modo dry-run para testes (padrão: false)
-| `strict_conventional_commits` | Ativa o modo strict (utilizado se promotion_strategy = release-branch)   
+| Inputs               | Descrição
+| ----                 | ----
+| `stack`              | `node` / `php`* / `dotnet`* / `python`* / `go`*
+| `project_path`       | Caminho do código fonte (padrão: `.`)
+| `dry_run`            | Ativa o modo dry-run para testes (padrão: false)
+| `commit_strict_mode` | Ativa o modo strict (utilizado se promotion_strategy = release-branch)   
 
 <!--| `versioning_mode`             | Estrategia de versionamento (managed-version / self-versioned(padrão)) -->
 
@@ -191,7 +191,7 @@ Opção disponível para os fluxo `pull-request`* e `release`, e quando ativado,
 
 ```yaml
 with:
-  strict_conventional_commits: true
+  commit_strict_mode: true
 ```
 
 **O que acontece?**
