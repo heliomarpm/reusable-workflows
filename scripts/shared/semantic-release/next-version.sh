@@ -1,26 +1,15 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-echo "🚀 Semantic Release Script"
+source "$(dirname "$0")/../shell-helpers.sh"
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
-log() { echo "→ $1"; }
-has_file() { [[ -f "$1" ]]; }
-
-fail() {
-  echo "::error::$1"
-  exit 1
-}
-
+log "🔍 Resolving next release version (semantic-release dry-run)"
 
 # ------------------------------------------------------------
 # Environments
 # ------------------------------------------------------------
 REUSABLE_PATH="${REUSABLE_PATH:-__reusable_files__}"
 STACK="${STACK:-node}"
-IS_DRY_RUN="${IS_DRY_RUN:-false}"
 IS_DEBUG="${IS_DEBUG:-false}"
 IS_STRICT_MODE="${IS_STRICT_MODE:-false}"
 
@@ -98,15 +87,31 @@ run() {
     is_strict_mode "$CMD"
   fi
 
-  if [[ "$IS_DRY_RUN" == "true" || "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
-    log "Dry-run enabled"
-    CMD+=" --dry-run"
-  fi
+  log "Dry-run enabled"
+  CMD+=" --dry-run"
 
   echo "===================================================="
   log "running: $CMD"
-  eval "$CMD"  
+
+  local OUTPUT=$(eval "$CMD" 2>&1 || true)
+  
+  # ------------------------------------------------------------
+  # Robust version extraction
+  # ------------------------------------------------------------
+  local VERSION=$(echo "$OUTPUT" \
+    | grep -Eo 'next release version is ([0-9]+\.[0-9]+\.[0-9]+)' \
+    | sed -E 's/.* ([0-9]+\.[0-9]+\.[0-9]+)/\1/' \
+    | head -n1 || true)
+
+  if [[ -z "$VERSION" ]]; then
+    log "ℹ️ No next release version detected"
+    exit 0
+  fi
+
+  echo "$VERSION"
 }
 
-run
-log "🎉 Done."
+VERSION=$(run)
+
+log "✅ Next release version detected: ${VERSION:-<none>}"
+echo "$VERSION"
