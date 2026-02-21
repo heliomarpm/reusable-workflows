@@ -1,0 +1,421 @@
+name: CD - Pull Request
+
+on:
+  workflow_call:
+    inputs:
+      main_branch:
+        description: 'Main branch (default: main)'
+        required: false
+        type: string
+        default: "main"
+      develop_branch:
+        description: 'Develop branch (default: develop)'
+        required: false
+        type: string
+        default: "develop"
+
+      pr_title:
+        description: 'Title for the Pull Request'
+        required: false
+        type: string
+        default: "🔀 PR ({{yyyy-MM-dd}}): {{HEAD_BRANCH}} → {{BASE_BRANCH}}"
+
+      pr_body:
+        description: 'Body for the Pull Request (default changes made by this workflow)'
+        required: false
+        type: string
+
+      pr_body_path:
+        description: 'Path for the Pull Request body. Takes priority over `pr_body`'
+        required: false
+        type: string
+
+    secrets:
+      GH_TOKEN:
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  resolve-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      head: ${{ steps.resolve.outputs.head }}
+      base: ${{ steps.resolve.outputs.base }}
+      skip: ${{ steps.resolve.outputs.skip }}
+
+    steps:
+    - name: 🔍 Resolve branches
+      id: resolve
+      run: |
+        HEAD="${{ github.event.workflow_run.head_branch || github.head_ref || github.ref_name }}"
+        MAIN="${{ inputs.main_branch }}"
+        DEV="${{ inputs.develop_branch }}"
+        REL_PREFIX="${{ inputs.prefix_release_branch }}"
+
+        if [[ "$HEAD" == "$MAIN" ]]; then
+          echo "skip=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        if [[ "$HEAD" == "$DEV" ]]; then
+          BASE="$MAIN"
+        else
+          BASE="$DEV"
+        fi
+
+        echo "🔹 Pull Request: $HEAD → $BASE"
+
+        echo "base=$BASE" >> $GITHUB_OUTPUT
+        echo "head=$HEAD" >> $GITHUB_OUTPUT
+        echo "skip=false" >> $GITHUB_OUTPUT
+
+    - name: 🚫 Skip - main branch detected
+      if: steps.resolve.outputs.skip == 'true'
+      run: echo "→ Main branch detected. Skipping auto PR."
+
+  read-quality:
+    needs: resolve-branch
+    if: needs.resolve-branch.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+
+    outputs:
+      status: ${{ steps.quality.outputs.status }}
+      base: ${{ steps.quality.outputs.base }}
+      line: ${{ steps.quality.outputs.line }}
+      min: ${{ steps.quality.outputs.min }}
+      delta: ${{ steps.quality.outputs.delta }}
+      mode: ${{ steps.quality.outputs.mode }}
+      reason: ${{ steps.quality.outputs.reason }}
+      interpretation: ${{ steps.quality.outputs.interpretation }}
+
+    steps:
+    - name: 🔎 Read quality check
+      id: quality
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GH_TOKEN }}
+        script: |
+          const { owner, repo } = context.repo;
+          const sha = context.payload.workflow_run.head_sha;
+
+          const checks = await github.rest.checks.listForRef({
+            owner,
+            repo,
+            ref: sha
+          });
+
+          const check = checks.data.check_runs.find(c => c.name === "actions-flow/quality");
+
+          if (!check) {
+            core.setOutput("status", "missing");
+            return;
+          }
+
+          const match = check.output.text?.match(/```json\n([\s\S]*?)\n```/);
+
+          if (!match) {
+            core.setOutput("status", "missing");
+            return;
+          }
+
+          const data = JSON.parse(match[1]);
+
+          const hasCoverage = !!(data?.coverage);
+
+          core.setOutput("hasCoverage", hasCoverage);
+
+          if (hasCoverage) {
+            core.setOutput("line", data.coverage.line);
+            core.setOutput("base", data.coverage.base);
+            core.setOutput("delta", data.coverage.delta);
+            core.setOutput("min", data.coverage.minimum);
+            core.setOutput("mode", data.coverage.mode);
+            core.setOutput("status", data.coverage.status);
+            core.setOutput("reason", data.coverage.reason);
+            core.setOutput("interpretation", data.coverage.interpretation || data.coverage.reason);
+          }
+          console.log("📊 Quality Result: ", data);
+
+  auto-pr:
+    needs:
+    - resolve-branch
+    - read-quality
+    if: needs.resolve-branch.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+
+    env:
+      REUSABLE_PATH: ${{ github.workspace }}/__reusable_files__
+      BASH_ENV: ${{ github.workspace }}/__reusable_files__/scripts/shared/shell-helpers.sh
+
+    steps:
+    - name: 📌 Checkout consumer repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Necessário para evitar falhas do gh CLI em repositórios grandes
+        token: ${{ secrets.GH_TOKEN }} # Necessário se o repositório for privado
+
+    - name: 📌 Checkout reusable repository
+      uses: actions/checkout@v4
+      with:
+        repository: heliomarpm/actions-flow
+        ref: main
+        path: ${{ env.REUSABLE_PATH }}
+        fetch-depth: 1
+
+    # -------------------------------------------------
+    # Garantir que o remote do repo consumidor está correto
+    # -------------------------------------------------
+    # - name: 🔐 Fix git remote
+    #   run: |
+    #     git remote set-url origin https://github.com/${GITHUB_REPOSITORY}.git
+    #     git fetch origin --prune
+    #     git remote -v
+
+    - name: 🔐 Auth GitHub CLI
+      run: |
+        # echo "${GITHUB_TOKEN}" | gh auth login --with-token
+        gh auth setup-git
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    # -------------------------------------------------
+    # Validar branch destino de forma determinística
+    # -------------------------------------------------
+    - name: 🔎 Ensure Destination Branch
+      if: needs.resolve-branch.outputs.skip != 'true'
+      run: |
+        set -e
+
+        BASE="${{ needs.resolve-branch.outputs.base }}"
+
+        log "Checking branch: $BASE"
+
+        if ! git show-ref --verify --quiet "refs/remotes/origin/$BASE"; then
+          {
+            echo "## ❌ Invalid destination branch"
+            echo ""
+            echo "Branch \`$BASE\` does not exist in repository."
+            echo ""
+            echo "### Available branches:"
+            # git branch -r
+            git ls-remote --heads origin | awk '{print $2}' | sed 's|refs/heads/||'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          log "Expected branch: $BASE"
+          exit 1
+        fi
+
+    - name: 🏷 Ensure labels exist
+      if: needs.resolve-branch.outputs.skip != 'true'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+        ensure_label "auto-generated" "Pull Request criada automaticamente" 006B75
+        ensure_label "coverage-failed" "Cobertura de testes abaixo do limite mínimo" D93F0B
+        ensure_label "coverage-passed" "Cobertura de testes adequado" 0E8A16
+        ensure_label "coverage-missing" "Sem testes ou cobertura de testes" E99695
+
+    - name: 📝 Generate PR body
+      if: needs.resolve-branch.outputs.skip != 'true'
+      working-directory: ${{ steps.path.outputs.value }}
+      run: |
+        log "Cobertura: ${{ needs.read-quality.outputs.interpretation }}"
+
+        if [ -n "${{ inputs.pr_body_path }}" ]; then
+          PR_BODY_PATH="${{ steps.path.outputs.value }}/${{ inputs.pr_body_path }}"
+          log "Usando atributo \`pr_body_path\`: $PR_BODY_PATH"
+
+          if [ ! -f "$PR_BODY_PATH" ]; then
+            fail "PR body file \`not found\`: $PR_BODY_PATH"
+          fi          
+          PR_TEMPLATE="$(cat $PR_BODY_PATH)"
+        elif [ -n "${{ inputs.pr_body }}" ]; then 
+          log "Usando atributo \`pr_body\`"
+          PR_TEMPLATE="${{ inputs.pr_body  }}"
+        fi
+
+        if ! [ -v PR_TEMPLATE ]; then
+          log "Usando template padrão"
+          PR_TEMPLATE=$(cat "${{ env.REUSABLE_PATH }}/.github/templates/pr_template.md")
+        fi
+
+        COVERAGE_BLOCK="missing"
+        COV_LINE="${{ needs.read-quality.outputs.line }}"
+
+        # Verifica se o template contém a chave para bloco de qualidade
+        if [[ "$PR_TEMPLATE" == *"{{QUALITY_GATE_RESULT}}"* ]]; then
+
+          TITLE_BLOCK="📊 Cobertura de Testes"
+
+          if [[ -n "$COV_LINE" ]]; then
+            COVERAGE_BLOCK="found"
+          else
+            COVERAGE_BLOCK="not-found"
+          fi        
+        fi
+
+        log "COVERAGE_BLOCK: $COVERAGE_BLOCK"
+
+        if [ "$COVERAGE_BLOCK" = "found" ]; then
+          COV_BASE="${{ needs.read-quality.outputs.base }}"
+          COV_LINE="${{ needs.read-quality.outputs.line }}"
+          COV_DELTA="${{ needs.read-quality.outputs.delta }}"
+          COV_MIN="${{ needs.read-quality.outputs.min }}"
+          COV_STATUS="${{ needs.read-quality.outputs.status }}"
+          COV_MODE="${{ needs.read-quality.outputs.mode }}"
+          COV_REASON="${{ needs.read-quality.outputs.reason }}"
+          COV_INTERPRETATION="${{ needs.read-quality.outputs.interpretation }}"
+
+          if [ "$COV_STATUS" = "passed" ]; then
+            STATUS_DISPLAY="✅"
+          else
+            STATUS_DISPLAY="❌"
+          fi
+          STATUS_DISPLAY+=" \`$COV_STATUS\`"
+          
+          QUALITY_BLOCK=$(cat <<EOF
+        ---
+        ### $TITLE_BLOCK
+
+        > $COV_INTERPRETATION
+
+        | Métrica | Valor  |
+        |-------- |------- |
+        | Branch Base  | **$COV_BASE%** |
+        | Linhas  | **$COV_LINE%** |
+        | Delta  | $COV_DELTA |
+        | Mínimo requerido | $COV_MIN% |
+        | Modo | \`$COV_MODE\` |
+        | Status | $STATUS_DISPLAY |
+
+        EOF
+        )
+        elif [ "$COVERAGE_BLOCK" = "not-found" ]; then
+          QUALITY_BLOCK=$(cat <<EOF
+        ---
+        ### $TITLE_BLOCK  
+
+        > ⚠️ Cobertura não gerada para este projeto.
+
+        Status: $STATUS_DISPLAY
+
+        EOF
+        )          
+        else
+          QUALITY_BLOCK=""
+        fi
+
+        log "QUALITY_BLOCK: $QUALITY_BLOCK"
+
+        # Substitui os placeholders 
+        PR_TEMPLATE=${PR_TEMPLATE//\{\{HEAD_BRANCH\}\}/"${{ needs.resolve-branch.outputs.head }}"} 
+        PR_TEMPLATE=${PR_TEMPLATE//\{\{BASE_BRANCH\}\}/"${{ needs.resolve-branch.outputs.base }}"} 
+        PR_TEMPLATE=${PR_TEMPLATE//\{\{QUALITY_GATE_RESULT\}\}/"$QUALITY_BLOCK"} 
+
+        echo "$PR_TEMPLATE" > pr_body.md
+
+    - name: 📜 Create or Update Pull Request
+      id: create-pr
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: |
+        set -e
+
+        HEAD="${{ needs.resolve-branch.outputs.head }}"
+        BASE="${{ needs.resolve-branch.outputs.base }}"
+        TITLE="${{ inputs.pr_title || 'PR $HEAD → $BASE' }}"
+
+        TITLE=${TITLE//\{\{yyyy-MM-dd\}\}/$(date +'%Y-%m-%d')}
+        TITLE=${TITLE//\{\{HEAD_BRANCH\}\}/$HEAD}
+        TITLE=${TITLE//\{\{BASE_BRANCH\}\}/$BASE}
+
+        STATUS_COVERAGE="${{ needs.read-quality.outputs.status }}"
+        if [ "$STATUS_COVERAGE" = "failed" ]; then
+          ADD_LABEL="coverage-failed"
+          DEL_LABEL="coverage-passed,coverage-missing"
+        elif [ "$STATUS_COVERAGE" = "passed" ]; then
+          ADD_LABEL="coverage-passed"
+          DEL_LABEL="coverage-failed,coverage-missing"
+        elif [ "$STATUS_COVERAGE" = "missing" ]; then
+          ADD_LABEL="coverage-missing"
+          DEL_LABEL="coverage-passed,coverage-failed"
+        fi
+
+        # Tenta encontrar um PR existente
+        PR_NUMBER=$(gh pr list --base "$BASE" --head "$HEAD" --json number --jq '.[0].number')
+
+        echo "$TITLE"
+        if [ -z "$PR_NUMBER" ]; then
+          echo "→ No existing PR found. Creating new PR..."
+          gh pr create \
+            --base "$BASE" \
+            --head "$HEAD" \
+            --title "$TITLE" \
+            --body-file pr_body.md \
+            --label "auto-generated,$ADD_LABEL" \
+            --assignee "${{ github.actor }}"
+
+          PR_URL=$(gh pr view "$HEAD" --json url --jq '.url')
+          PR_ACTION="created"
+        else
+          echo "→ Existing PR #$PR_NUMBER found. Updating..."
+          gh pr edit "$PR_NUMBER" \
+            --title "$TITLE" \
+            --body-file pr_body.md \
+            --add-assignee "${{ github.actor }}" \
+            --remove-label "$DEL_LABEL" \
+            --add-label "$ADD_LABEL"
+
+          PR_URL="https://github.com/${{ github.repository }}/pull/$PR_NUMBER"
+          PR_ACTION="updated"
+        fi
+
+        # Saida para Anotations do workflow
+        echo "::notice title=Auto PR ${PR_ACTION}::${HEAD} → ${BASE}"
+        echo "::notice title=Pull Request::${PR_URL}"
+
+        echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+        echo "pr_action=$PR_ACTION" >> $GITHUB_OUTPUT
+
+    - name: 🧾 Job Summary
+      if: always()
+      run: |
+        if [ "${{ needs.read-quality.outputs.status }}" = "failed" ]; then
+          STATUS_DISPLAY="❌"
+        else
+          STATUS_DISPLAY="✅"
+        fi
+        STATUS_DISPLAY+=" \`${{ needs.read-quality.outputs.status }}\`"
+
+        cat <<EOF >> $GITHUB_STEP_SUMMARY
+        ## 🔀 Auto Pull Request
+
+        **Status:** \`${{ steps.create-pr.outputs.pr_action || 'processed' }}\`
+
+        **From:** \`${{ needs.resolve-branch.outputs.head }}\`  
+        **To:** \`${{ needs.resolve-branch.outputs.base }}\`
+
+        ---
+        ### 📊 Coverage
+
+        > ${{ needs.read-quality.outputs.interpretation }}
+
+        | Metric      | Value                                       |
+        |------------ |-------------------------------------------- |
+        | Base Branch | ${{ needs.read-quality.outputs.base }}%     |
+        | Coverage    | **${{ needs.read-quality.outputs.line }}%** |
+        | Delta Δ     | ${{ needs.read-quality.outputs.delta }}     |
+        | Minimum     | ${{ needs.read-quality.outputs.min }}%      |
+        | Mode        | \`${{ needs.read-quality.outputs.mode }}\`  |
+        | Status      | $STATUS_DISPLAY                             |
+        | Reason      | \`${{ needs.read-quality.outputs.reason }}\`|
+                
+        ---
+        🔗 **PR:** ${{ steps.create-pr.outputs.pr_url || '<failed>' }}
+
+        ---
+        _Gerado automaticamente pela action **auto-pr**_
+        EOF
