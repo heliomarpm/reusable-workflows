@@ -1,0 +1,384 @@
+name: CI - Quality Assurance
+
+on:
+  workflow_call:
+    inputs:
+      stack:
+        description: 'Stack the project. (node | php | dotnet | python | go | empty for auto-detect)'
+        required: false
+        type: string
+        default: "auto"
+      project_path:
+        description: 'Project path source code'
+        required: false
+        type: string
+        default: "."
+      project_private:
+        description: 'Source repository is private. GH_TOKEN will be required if the repository is private.'
+        required: false
+        type: boolean
+        default: false
+
+      coverage_base_branch:
+        description: 'Base branch for comparative coverage (decrease mode) (default: main)'
+        required: false
+        type: string
+        default: "main"
+      coverage_strategy:
+        description: 'Coverage strategy (custom | empty for auto-detect)'
+        required: false
+        type: string
+        default: "auto"
+      coverage_command:
+        description: 'Command to calculate coverage percentage'
+        required: false
+        type: string
+      coverage_min:
+        description: 'Minimum coverage percentage (0-100 | default: 80)'
+        type: number
+        required: false
+        default: 80
+      coverage_strict_mode:
+        description: 'Coverage mode (info | block | decrease)'
+        type: string
+        required: false
+        default: "info"
+
+      coverage_continue_on_failure:
+        description: 'Continue pipeline even if tests fail. (default: true)'
+        required: false
+        type: boolean
+        default: true
+
+    secrets:
+      GH_TOKEN:
+        description: 'GitHub Token for private consumer repositories'
+        required: false
+
+# concurrency:
+#   group: ci-quality-${{ github.ref }}
+#   cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    env:
+      REUSABLE_PATH: ${{ github.workspace }}/__reusable_files__
+      BASH_ENV: ${{ github.workspace }}/__reusable_files__/scripts/shared/shell-helpers.sh
+      QUALITY_FILE: ${{ github.workspace }}/quality-result.json
+
+    steps:
+    - name: 📌 Checkout consumer repository (private)
+      if: ${{ inputs.project_private }}
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GH_TOKEN }}
+
+    - name: 📌 Checkout consumer repository (public)
+      if: ${{ inputs.project_private == false }}
+      uses: actions/checkout@v4
+
+    - name: 📌 Checkout reusable repository
+      uses: actions/checkout@v4
+      with:
+        repository: heliomarpm/actions-flow
+        ref: main # ${{ github.ref }}
+        path: ${{ env.REUSABLE_PATH }}
+
+    - name: 📐 Resolve project path
+      id: path
+      run: |
+        PROJECT_PATH="$(resolve_project_path '${{ inputs.project_path }}')"
+        log "🔹 Using project path: $PROJECT_PATH"
+        echo "value=$PROJECT_PATH" >> "$GITHUB_OUTPUT"
+
+    - name: 👀 Files in workspace
+      working-directory: ${{ steps.path.outputs.value }}
+      run: |
+        ls_files
+
+    - name: 🔍 Resolve project stack
+      id: stack
+      working-directory: ${{ steps.path.outputs.value }}
+      run: |
+        STACK="${{ inputs.stack }}"
+        if [[ -n "$STACK" && "$STACK" != "auto" ]]; then
+          echo "🔹 Using stack from input: $STACK"
+          echo "value=$STACK" >> $GITHUB_OUTPUT
+          echo "source=input" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        SCRIPT="$REUSABLE_PATH/scripts/shared/detect-stack.sh"
+        chmod +x "$SCRIPT"
+        STACK=$("$SCRIPT" "${{ steps.path.outputs.value }}")
+
+        echo "value=$STACK" >> $GITHUB_OUTPUT
+        echo "source=detected" >> $GITHUB_OUTPUT
+
+    - name: ❌ Fail if stack not detected
+      if: steps.stack.outputs.value == ''
+      run: fail "Stack not detected. Check project_path or repository structure."
+
+    - name: ▶️ Run unit tests
+      working-directory: ${{ steps.path.outputs.value }}
+      run: |
+        STACK="${{ steps.stack.outputs.value }}"
+        SCRIPT="$REUSABLE_PATH/scripts/plugins/$STACK/test.sh"
+        chmod +x "$SCRIPT"
+        "$SCRIPT"
+
+    - name: 📊 Run coverage tests
+      id: coverage
+      continue-on-error: ${{ inputs.coverage_continue_on_failure }}
+      working-directory: ${{ steps.path.outputs.value }}
+      env:
+        COVERAGE_STRATEGY: ${{ inputs.coverage_strategy }}
+        COVERAGE_COMMAND: ${{ inputs.coverage_command }}
+        REPO_ROOT: ${{ github.workspace }}
+        QUALITY_FILE: ${{ env.QUALITY_FILE }}
+      run: |
+        STACK="${{ steps.stack.outputs.value }}"
+        SCRIPT="$REUSABLE_PATH/scripts/plugins/$STACK/coverage.sh"
+        chmod +x "$SCRIPT"
+
+        "$SCRIPT" || true
+
+        FILE="${{ env.QUALITY_FILE }}"
+
+        if [ ! -f "$FILE" ]; then
+          echo "⚠️ Coverage not produced → defaulting to 0"
+          mkdir -p coverage
+          cat <<EOF > "$FILE"
+        { "line": 0 }
+        EOF
+        fi
+
+        LINE=$(jq '.line' "$FILE")
+        echo "line=$LINE" >> $GITHUB_OUTPUT
+
+    - name: 📉 Get base branch coverage (for decrease mode)
+      id: base-coverage
+      # if: inputs.coverage_strict_mode == 'decrease'
+      run: |
+        BASE_REF="${{ github.base_ref || inputs.coverage_base_branch }}"
+
+        log "Base branch: $BASE_REF"
+
+        if [ -z "$BASE_REF" ]; then
+          log "No base ref detected (not a PR). Skipping."
+          echo "line=0" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Checking out base branch: $BASE_REF"
+
+        git fetch origin "$BASE_REF" --depth=1
+        git checkout "$BASE_REF"
+
+        STACK="${{ steps.stack.outputs.value }}"
+        SCRIPT="$REUSABLE_PATH/scripts/plugins/$STACK/coverage.sh"
+        chmod +x "$SCRIPT"
+
+        "$SCRIPT" || true
+
+        FILE="${{ env.QUALITY_FILE }}"
+
+        if [ -f "$FILE" ]; then
+          BASE_LINE=$(jq '.line' "$FILE")
+        else
+          BASE_LINE=0
+        fi
+
+        echo "Base coverage: $BASE_LINE%"
+        echo "line=$BASE_LINE" >> $GITHUB_OUTPUT
+
+        # Volta para branch original
+        git checkout -
+
+    - name: ✅ Evaluate coverage
+      id: eval-coverage
+      run: |
+        FILE="${{ env.QUALITY_FILE }}"
+
+        LINE=$(jq '.line' "$FILE")
+        MIN=${{ inputs.coverage_min }}
+        MODE="${{ inputs.coverage_strict_mode }}"
+        BASE_LINE=${{ steps.base-coverage.outputs.line || 0 }}
+
+        # BELOW_MIN=$(echo "$LINE < $MIN" | bc -l) 
+        # DELTA=$(echo "$LINE - $BASE_LINE" | bc -l)
+        BELOW_MIN=$(awk "BEGIN {print ($LINE < $MIN)}")
+        DELTA=$(awk "BEGIN {print ($LINE - $BASE_LINE)}")
+
+        if [ "$DELTA" -gt 0 ]; then
+          DELTA_DISPLAY="📈 +$DELTA%"
+        elif [ "$DELTA" -lt 0 ]; then
+          DELTA_DISPLAY="📉 $DELTA%"
+        else
+          DELTA_DISPLAY="➖ 0%"
+        fi
+
+        STATUS="passed"
+        REASON="coverage-enough"
+        INTERPRETATION="A cobertura está **de acordo** com o limite exigido."
+
+        if [ "$BELOW_MIN" -eq 1 ]; then
+          STATUS="failed"
+          REASON="below-minimum"
+          INTERPRETATION="A cobertura está **abaixo** do limite mínimo. Adicione mais testes antes de mesclar."
+        fi
+
+        if [ "$MODE" = "decrease" ] && [ "$DELTA" -lt 0 ]; then
+          STATUS="failed"
+          REASON="coverage-decreased"
+          INTERPRETATION="A cobertura diminuiu. Adicione mais testes antes de mesclar."
+        fi
+
+        cat <<EOF > "$FILE"
+        {
+          "base": $BASE_LINE,
+          "line": $LINE,
+          "delta": "$DELTA_DISPLAY"
+          "min": $MIN,
+          "status": "$STATUS",
+          "mode": "$MODE",
+          "reason": "$REASON",
+          "interpretation": "$INTERPRETATION"
+        }
+        EOF
+
+        echo "base=$BASE_LINE" >> $GITHUB_OUTPUT
+        echo "line=$LINE" >> $GITHUB_OUTPUT
+        echo "delta=$DELTA_DISPLAY" >> $GITHUB_OUTPUT
+        echo "min=$MIN" >> $GITHUB_OUTPUT
+        echo "status=$STATUS" >> $GITHUB_OUTPUT
+        echo "mode=$MODE" >> $GITHUB_OUTPUT
+        echo "reason=$REASON" >> $GITHUB_OUTPUT
+        echo "interpretation=$INTERPRETATION" >> $GITHUB_OUTPUT
+
+        echo "--------------------------------------"
+        log "Coverage Base: $BASE_LINE%"
+        log "Coverage: $LINE%"
+        log "Minimum: $MIN%"
+        log "Delta: $DELTA_DISPLAY"
+        log "Status: $STATUS"
+        log "Mode: $MODE"
+        log "Reason: $REASON"
+        log "Interpretation: $INTERPRETATION"
+        echo "--------------------------------------"
+
+        if [ "$STATUS" = "failed" ]; then
+          if [ "$MODE" = "block" ]; then
+            fail echo "❌ Coverage below threshold ($LINE < $MIN)"
+          
+          elif [ "$MODE" = "decrease" ]; then
+            fail echo "❌ Coverage decreased ($LINE < $BASE_LINE)"
+          fi
+        fi
+
+    - name: 📦 Upload coverage artifact
+      uses: actions/upload-artifact@v4
+      continue-on-error: true
+      with:
+        name: coverage--${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+        path: ${{ env.QUALITY_FILE }}
+        if-no-files-found: ignore
+
+    - name: Publish quality result
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const result = {
+            coverage: {
+              line: Number("${{ steps.eval-coverage.outputs.line || 0 }}"),
+              base: Number("${{ steps.eval-coverage.outputs.base || 0 }}"),
+              delta: "${{ steps.eval-coverage.outputs.delta || '0' }}",
+              minimum: Number("${{ inputs.coverage_min || 0 }}"),
+              mode: "${{ inputs.coverage_strict_mode }}",
+              status: "${{ steps.eval-coverage.outputs.status || 'unknown' }}",
+              reason: "${{ steps.eval-coverage.outputs.reason || 'not evaluated' }}",
+              interpretation: "${{ steps.eval-coverage.outputs.interpretation || 'not evaluated' }}"
+            }
+          };
+
+          conclusion = result.status === "failed" && result.mode !== "info" ? "failure" : "success";
+
+          await github.rest.checks.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            name: "actions-flow/quality",
+            head_sha: context.sha,
+            status: "completed",
+            conclusion,
+            output: {
+              title: "Quality Report",
+              summary: "Actions Flow - Quality check",
+              text: "```json\n" + JSON.stringify(result, null, 2) + "\n```"
+            }
+          });
+
+    - name: 🧾 Job Summary
+      if: always()
+      # working-directory: ${{ github.workspace }} 
+      run: |
+        {
+          echo "## 🧪 Quality Gate "
+          echo ""
+          echo "**📂 Project path:** \`${{ inputs.project_path || './'}}\`"
+          echo ""
+
+          if [[ "${{ steps.stack.outputs.value }}" != "" ]]; then
+            echo "**🧱 Stack:** \`${{ steps.stack.outputs.value }}\` (_${{ steps.stack.outputs.source }}_)"
+          else
+            echo "**🧱 Stack:** ❌ \`not detected\`"
+          fi
+
+          echo ""
+          echo "---"
+          if [[ "${{ steps.eval-coverage.outputs.status }}" == "passed" ]]; then
+            if [[ -n "${{ steps.eval-coverage.outputs.line }}" ]]; then
+              echo "**📊 Coverage:** \`${{ steps.eval-coverage.outputs.line }}%"\`
+            else
+              echo "**📊 Coverage:** \`executed\` (no summary produced) | mode: \`${{ steps.eval-coverage.outputs.mode }}"\`
+            fi
+          elif [[ "${{ steps.eval-coverage.outputs.status }}" == "failed" ]]; then
+            echo "**📊 Coverage:** \`failed\` | mode: \`${{ steps.eval-coverage.outputs.mode }}"\`
+          else
+            echo "**📊 Coverage:** \`not executed\` | mode: \`${{ steps.eval-coverage.outputs.mode }}"\`
+          fi
+
+          echo ""
+          if [ -n "${{ steps.eval-coverage.outputs.reason }}" ]; then
+            echo "**Reason:** ${{ steps.eval-coverage.outputs.reason }}"
+          fi
+          
+          if [ "${{ steps.eval-coverage.outputs.status }}" = "failed" ]; then
+            STATUS_DISPLAY="❌"
+          else
+            STATUS_DISPLAY="✅"
+          fi
+          STATUS_DISPLAY+=" \`${{ steps.eval-coverage.outputs.status }}\`"
+
+          echo ""
+          echo "> ${{ steps.eval-coverage.outputs.interpretation }}"
+          echo ""
+          echo "| Metric      | Value                                         |"
+          echo "|------------ |---------------------------------------------- |"
+          echo "| Base Branch | ${{ steps.eval-coverage.outputs.base }}%      |"
+          echo "| Coverage    | **${{ steps.eval-coverage.outputs.line }}%**  |"
+          echo "| Delta Δ     | ${{ steps.eval-coverage.outputs.delta }}      |"
+          echo "| Minimum     | ${{ steps.eval-coverage.outputs.min }}%       |"
+          echo "| Mode        | \`${{ steps.eval-coverage.outputs.mode }}\`   |"
+          echo "| Status      | $STATUS_DISPLAY                               |"
+          echo "| Reason      | \`${{ steps.eval-coverage.outputs.reason }}\` |"
+          
+          if [ -f "${{ env.QUALITY_FILE }}" ]; then
+            echo ""
+            echo "---"
+            echo "**📦 Artifacts:** coverage-report"
+          fi
+        } >> $GITHUB_STEP_SUMMARY
