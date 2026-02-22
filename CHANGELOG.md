@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2](https://github.com/heliomarpm/reusable-workflows/compare/v1.0.1...v1.0.2) (2026-02-22)
+
+
+### Bug Fixes
+
+* **workflow:** 🐛 corrigir log de cobertura no workflow de PR ([0fd2bf6](https://github.com/heliomarpm/reusable-workflows/commit/0fd2bf64349b451a689edf09da9fa2d2f67272b5))
+
 ## [1.0.1](https://github.com/heliomarpm/reusable-workflows/compare/v1.0.0...v1.0.1) (2026-02-22)
 
 
