@@ -34,6 +34,12 @@ on:
       GH_TOKEN:
         required: true
 
+permissions:
+  contents: write       # → permite criar e atualizar tags, commits e pushes no repositório.
+  issues: write         # (opcional) → se você quiser que o release crie comentários em issues.
+  pull-requests: write  # (opcional) → se quiser que o release comente em PRs.
+  checks: read          # (opcional) → se precisar ler check runs
+
 jobs:
   semantic-release:
     runs-on: ubuntu-latest

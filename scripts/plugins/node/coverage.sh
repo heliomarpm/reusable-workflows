@@ -83,6 +83,7 @@ elif [ "$COVERAGE_STRATEGY" = "auto" ]; then
   fi
 
   if [ -z "$RUNNER" ]; then
+    create_quality_file
     echo "❌ No supported test runner detected (Vitest/Jest)"
     exit 1
   fi
@@ -106,11 +107,6 @@ fi
 # ------------------------------------------------------------
 if [ ! -f "$RAW_FILE" ]; then
   echo "❌ Coverage summary not generated at $RAW_FILE"
-  exit 1
-fi
-
-if ! command -v jq >/dev/null 2>&1; then
-  echo "❌ jq is required but not installed"
   exit 1
 fi
 

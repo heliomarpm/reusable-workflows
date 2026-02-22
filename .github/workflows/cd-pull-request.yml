@@ -35,8 +35,9 @@ on:
         required: true
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: write       # → permite criar e atualizar tags, commits e pushes no repositório.
+  pull-requests: write  # → se precisar criar ou atualizar pull requests
+  checks: read          # → (opcional) se precisar ler check runs
 
 jobs:
   resolve-branch:
@@ -98,8 +99,6 @@ jobs:
       with:
         github-token: ${{ secrets.GH_TOKEN }}
         script: |
-          const { owner, repo } = context.repo;
-
           // tenta pegar SHA de diferentes contextos 
           const sha = context.payload?.workflow_run?.head_sha || context.payload?.pull_request?.head?.sha || context.payload?.after || context.sha; 
 
@@ -110,8 +109,8 @@ jobs:
           }
 
           const checks = await github.rest.checks.listForRef({
-            owner,
-            repo,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
             ref: sha
           });
 

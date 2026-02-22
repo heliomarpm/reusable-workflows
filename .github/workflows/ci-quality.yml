@@ -58,6 +58,9 @@ on:
 # concurrency:
 #   group: ci-quality-${{ github.ref }}
 #   cancel-in-progress: true
+permissions:
+  contents: write       # → permite criar e atualizar tags, commits e pushes no repositório.
+  checks: write         # → permite criar e atualizar check run
 
 jobs:
   quality:
