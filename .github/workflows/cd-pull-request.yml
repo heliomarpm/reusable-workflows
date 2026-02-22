@@ -229,7 +229,7 @@ jobs:
       if: needs.resolve-branch.outputs.skip != 'true'
       working-directory: ${{ steps.path.outputs.value }}
       run: |
-        log "Cobertura: ${{ needs.read-quality.outputs.interpretation }}"
+        log "Cobertura: ${{ needs.read-quality.outputs.status }}"
 
         if [ -n "${{ inputs.pr_body_path }}" ]; then
           PR_BODY_PATH="${{ steps.path.outputs.value }}/${{ inputs.pr_body_path }}"
@@ -249,6 +249,7 @@ jobs:
           PR_TEMPLATE=$(cat "${{ env.REUSABLE_PATH }}/.github/templates/pr_template.md")
         fi
 
+        STATUS_DISPLAY="➖"
         COVERAGE_BLOCK="missing"
         COV_LINE="${{ needs.read-quality.outputs.line }}"
 
