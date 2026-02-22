@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1](https://github.com/heliomarpm/reusable-workflows/compare/v1.0.0...v1.0.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* **workflow:** 🐛 melhorar recuperação do SHA em workflow de PR ([d360e52](https://github.com/heliomarpm/reusable-workflows/commit/d360e527dc16479b0acd21761de93f6b7585c5bf))
+
 ## 1.0.0 (2026-02-21)
 
 
