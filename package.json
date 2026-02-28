@@ -1,6 +1,6 @@
 {
   "name": "reusable-workflows",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Conjunto de GitHub Reusable Workflows para padronizar CI, cobertura, promoção de código e releases automatizados, com suporte a múltiplas stacks.",
   "author": "Heliomar P. Marques",
   "license": "MIT",
