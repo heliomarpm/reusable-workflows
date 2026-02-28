@@ -35,6 +35,7 @@ on:
         required: true
 
 permissions:
+  actions: read         
   contents: write       # → permite criar e atualizar tags, commits e pushes no repositório.
   issues: write         # (opcional) → se você quiser que o release crie comentários em issues.
   pull-requests: write  # (opcional) → se quiser que o release comente em PRs.
@@ -51,12 +52,6 @@ jobs:
     #   run:
     #     shell: bash
     #     working-directory: ${{ needs.workdir.outputs.path || '.' }}
-
-    permissions:
-      actions: read
-      contents: write
-      issues: write
-      pull-requests: write
 
     steps:
     - name: 📌 Checkout consumer repository
