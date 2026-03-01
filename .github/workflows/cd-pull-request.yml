@@ -84,10 +84,11 @@ jobs:
 
     outputs:
       hasQuality: ${{ steps.quality.outputs.hasQuality }}
-      hasCoverage: ${{ steps.quality.outputs.hasCoverage }}
-      hasCommitlint: ${{ steps.quality.outputs.hasCommitlint }}
+      hasCoverage: ${{ steps.quality.outputs.hasCoverage || false }}
+      hasCommitlint: ${{ steps.quality.outputs.hasCommitlint || false }}
 
       coverage: ${{ steps.quality.outputs.coverage }}
+      commitlint: ${{ steps.quality.outputs.commitlint }}
 
     steps:
     - name: 🔎 Read quality check
@@ -100,7 +101,7 @@ jobs:
           const sha = context.payload?.workflow_run?.head_sha || context.payload?.pull_request?.head?.sha || context.payload?.after || context.sha; 
 
           if (!sha) { 
-            core.setOutput("status", "missing"); 
+            core.setOutput("hasQuality", false);
             console.log("⚠️ Nenhum HASH encontrado no contexto"); 
             return; 
           }
