@@ -221,7 +221,7 @@ jobs:
       if: needs.resolve-branch.outputs.skip != 'true'
       # working-directory: ${{ steps.path.outputs.value }}
       run: |
-        log "hasCoverage ${{ needs.read-quality.outputs.hasCoverage }}"
+        HAS_COVERAGE="${{ needs.read-quality.outputs.hasCoverage }}"
 
         if [ -n "${{ inputs.pr_body_path }}" ]; then
           PR_BODY_PATH="${{ inputs.pr_body_path }}"
@@ -243,18 +243,16 @@ jobs:
 
         STATUS_DISPLAY="➖"
         COVERAGE_BLOCK="missing"
-        COV_LINE="${{ fromJson(needs.read-quality.outputs.coverage).line }}"
 
         # Verifica se o template contém a chave para bloco de qualidade
         if [[ "$PR_TEMPLATE" == *"{{QUALITY_GATE_RESULT}}"* ]]; then
-
           TITLE_BLOCK="📊 Cobertura de Testes"
 
-          if [[ -n "$COV_LINE" ]]; then
+          if [[ "$HAS_COVERAGE" = "true" ]]; then
             COVERAGE_BLOCK="found"
           else
             COVERAGE_BLOCK="not-found"
-          fi        
+          fi
         fi
 
         log "COVERAGE_BLOCK: $COVERAGE_BLOCK"
