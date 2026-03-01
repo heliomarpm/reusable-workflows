@@ -248,7 +248,7 @@ jobs:
         if [[ "$PR_TEMPLATE" == *"{{QUALITY_GATE_RESULT}}"* ]]; then
           TITLE_BLOCK="📊 Cobertura de Testes"
 
-          if [[ "$HAS_COVERAGE" = "true" ]]; then
+          if [[ "$HAS_COVERAGE" == "true" ]]; then
             COVERAGE_BLOCK="found"
           else
             COVERAGE_BLOCK="not-found"
@@ -328,7 +328,11 @@ jobs:
         TITLE=${TITLE//\{\{HEAD_BRANCH\}\}/$HEAD}
         TITLE=${TITLE//\{\{BASE_BRANCH\}\}/$BASE}
 
-        STATUS_COVERAGE="${{ fromJson(needs.read-quality.outputs.coverage).status }}"
+        STATUS_COVERAGE="missing"
+        if [[ ${{ needs.read-quality.outputs.hasCoverage }} == "true" ]]; then
+          STATUS_COVERAGE="${{ fromJson(needs.read-quality.outputs.coverage).status }}"
+        fi
+
         if [ "$STATUS_COVERAGE" = "failed" ]; then
           ADD_LABEL="coverage-failed"
           DEL_LABEL="coverage-passed,coverage-missing"
@@ -379,7 +383,17 @@ jobs:
     - name: 🧾 Job Summary
       if: always()
       run: |
-        COV_STATUS="${{ fromJson(needs.read-quality.outputs.coverage).status }}"
+        HAS_COV="${{ needs.read-quality.outputs.hasCoverage }}"
+        
+        COV_BASE="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).base || 0 }}"
+        COV_LINE="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).line || 0 }}"
+        COV_DELTA=${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).delta || 0 }}"
+        COV_MIN=${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).min || 0 }}"
+        COV_MODE"${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).mode || '--' }}"
+        COV_STATUS="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).status || 'failed' }}"
+        COV_INTERPRETATION="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).interpretation || 'Não disponível' }}"
+        COV_REASON="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).reason || 'Não disponível' }}"
+
         if [ "$COV_STATUS" = "failed" ]; then
           STATUS_DISPLAY="❌"
         else
@@ -398,17 +412,17 @@ jobs:
         ---
         ### 📊 Coverage
 
-        > ${{ fromJson(needs.read-quality.outputs.coverage).interpretation }}
+        > $COV_INTERPRETATION
 
         | Metric      | Value                                       |
-        |------------ |-------------------------------------------- |
-        | Base Branch | ${{ fromJson(needs.read-quality.outputs.coverage).base }}%     |
-        | Coverage    | **${{ fromJson(needs.read-quality.outputs.coverage).line }}%** |
-        | Delta Δ     | ${{ fromJson(needs.read-quality.outputs.coverage).delta }}     |
-        | Minimum     | ${{ fromJson(needs.read-quality.outputs.coverage).min }}%      |
-        | Mode        | \`${{ fromJson(needs.read-quality.outputs.coverage).mode }}\`  |
-        | Status      | $STATUS_DISPLAY                             |
-        | Reason      | \`${{ fromJson(needs.read-quality.outputs.coverage).reason }}\`|
+        |------------ |---------------- |
+        | Base Branch | $COV_BASE%      |
+        | Coverage    | **$COV_FILE%**  |
+        | Delta Δ     | $COV_DELTA      |
+        | Minimum     | $COV_MIN%       |
+        | Mode        | \`$COV_MODE\`   |
+        | Status      | $STATUS_DISPLAY |
+        | Reason      | \`$COV_REASON\` |
                 
         ---
         🔗 **PR:** ${{ steps.create-pr.outputs.pr_url || '<failed>' }}
