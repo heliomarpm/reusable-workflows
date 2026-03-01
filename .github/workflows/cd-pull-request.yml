@@ -221,7 +221,7 @@ jobs:
       if: needs.resolve-branch.outputs.skip != 'true'
       # working-directory: ${{ steps.path.outputs.value }}
       run: |
-        HAS_COVERAGE="${{ needs.read-quality.outputs.hasCoverage }}"
+        HAS_COVERAGE=${{ needs.read-quality.outputs.hasCoverage }}
 
         if [ -n "${{ inputs.pr_body_path }}" ]; then
           PR_BODY_PATH="${{ inputs.pr_body_path }}"
