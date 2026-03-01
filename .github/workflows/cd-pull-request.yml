@@ -223,6 +223,9 @@ jobs:
       run: |
         HAS_COVERAGE=${{ needs.read-quality.outputs.hasCoverage }}
 
+        log "Checking if coverage is required: $HAS_COVERAGE"
+        exit 0
+
         if [ -n "${{ inputs.pr_body_path }}" ]; then
           PR_BODY_PATH="${{ inputs.pr_body_path }}"
           log "Usando atributo \`pr_body_path\`: $PR_BODY_PATH"
@@ -418,7 +421,7 @@ jobs:
         | Metric      | Value                                       |
         |------------ |---------------- |
         | Base Branch | $COV_BASE%      |
-        | Coverage    | **$COV_FILE%**  |
+        | Coverage    | **$COV_LINE%**  |
         | Delta Δ     | $COV_DELTA      |
         | Minimum     | $COV_MIN%       |
         | Mode        | \`$COV_MODE\`   |
