@@ -384,15 +384,16 @@ jobs:
       if: always()
       run: |
         HAS_COV="${{ needs.read-quality.outputs.hasCoverage }}"
+        COV_JSON='${{ needs.read-quality.outputs.coverage }}'
         
-        COV_BASE="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).base || 0 }}"
-        COV_LINE="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).line || 0 }}"
-        COV_DELTA=${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).delta || 0 }}"
-        COV_MIN=${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).min || 0 }}"
-        COV_MODE"${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).mode || '--' }}"
-        COV_STATUS="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).status || 'failed' }}"
-        COV_INTERPRETATION="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).interpretation || 'Não disponível' }}"
-        COV_REASON="${{ $HAS_COV == 'true' && fromJson(needs.read-quality.outputs.coverage).reason || 'Não disponível' }}"
+        COV_BASE=$(echo "$COVERAGE_JSON" | jq -r '.base' || 0) 
+        COV_LINE=$(echo "$COVERAGE_JSON" | jq -r '.line' || 0) 
+        COV_DELTA=$(echo "$COVERAGE_JSON" | jq -r '.delta' || 0) 
+        COV_MIN=$(echo "$COVERAGE_JSON" | jq -r '.min' || 0) 
+        COV_MODE=$(echo "$COVERAGE_JSON" | jq -r '.mode' || '--') 
+        COV_STATUS=$(echo "$COVERAGE_JSON" | jq -r '.status' || 'failed') 
+        COV_INTERPRETATION=$(echo "$COVERAGE_JSON" | jq -r '.interpretation' || 'Não disponível') 
+        COV_REASON=$(echo "$COVERAGE_JSON" | jq -r '.reason' || 'n/a')
 
         if [ "$COV_STATUS" = "failed" ]; then
           STATUS_DISPLAY="❌"
