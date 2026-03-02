@@ -239,22 +239,6 @@ jobs:
           PR_TEMPLATE=$(cat "${{ env.REUSABLE_PATH }}/.github/templates/pr_template.md")
         fi
 
-        STATUS_DISPLAY="➖"
-        COVERAGE_BLOCK="missing"
-        HAS_COVERAGE=true
-
-        # Verifica se o template contém a chave para bloco de qualidade
-        if [[ "$PR_TEMPLATE" == *"{{QUALITY_GATE_RESULT}}"* ]]; then
-          TITLE_BLOCK="📊 Cobertura de Testes"
-
-          if [[ "$HAS_COVERAGE" == "true" ]]; then
-            COVERAGE_BLOCK="found"
-          else
-            COVERAGE_BLOCK="not-found"
-          fi
-        fi
-
-        log "COVERAGE_BLOCK: $COVERAGE_BLOCK"
 
     - name: 📜 Create or Update Pull Request
       id: create-pr
