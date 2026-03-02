@@ -403,10 +403,10 @@ jobs:
         COV_REASON="${{ needs.read-quality.outputs.cov_reason }}"
         COV_INTERPRETATION="${{ needs.read-quality.outputs.cov_interpratation }}"
 
-        if [ "$COV_STATUS" = "failed" ]; then
-          STATUS_DISPLAY="❌"
-        else
+        if [ "$COV_STATUS" = "passed" ]; then
           STATUS_DISPLAY="✅"
+        else
+          STATUS_DISPLAY="❌"
         fi
         STATUS_DISPLAY+=" \`$COV_STATUS\`"
 
