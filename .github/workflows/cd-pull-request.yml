@@ -239,6 +239,9 @@ jobs:
           PR_TEMPLATE=$(cat "${{ env.REUSABLE_PATH }}/.github/templates/pr_template.md")
         fi
 
+        STATUS_DISPLAY="➖"
+        COVERAGE_BLOCK="missing"
+        HAS_COV="${{ needs.read-quality.outputs.hasCoverage }}"
 
     - name: 📜 Create or Update Pull Request
       id: create-pr
@@ -310,7 +313,6 @@ jobs:
     - name: 🧾 Job Summary
       if: always()
       run: |
-        HAS_COV="${{ needs.read-quality.outputs.hasCoverage }}"
         COV_JSON='${{ needs.read-quality.outputs.coverage }}'
         
         COV_BASE=$(echo "$COV_JSON" | jq -r '.base' || 0) 
@@ -342,7 +344,7 @@ jobs:
 
         > $COV_INTERPRETATION
 
-        | Metric      | Value                                       |
+        | Metric      | Value           |
         |------------ |---------------- |
         | Base Branch | $COV_BASE%      |
         | Coverage    | **$COV_LINE%**  |
