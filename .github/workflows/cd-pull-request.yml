@@ -224,7 +224,6 @@ jobs:
         HAS_COVERAGE=${{ needs.read-quality.outputs.hasCoverage }}
 
         log "Checking if coverage is required: $HAS_COVERAGE"
-        exit 0
 
         if [ -n "${{ inputs.pr_body_path }}" ]; then
           PR_BODY_PATH="${{ inputs.pr_body_path }}"
@@ -259,7 +258,7 @@ jobs:
         fi
 
         log "COVERAGE_BLOCK: $COVERAGE_BLOCK"
-
+        exit 0
         if [ "$COVERAGE_BLOCK" = "found" ]; then
           COV_BASE="${{ fromJson(needs.read-quality.outputs.coverage).base }}"
           COV_LINE="${{ fromJson(needs.read-quality.outputs.coverage).line }}"
