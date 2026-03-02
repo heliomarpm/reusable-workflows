@@ -87,7 +87,15 @@ jobs:
       hasCoverage: ${{ steps.quality.outputs.hasCoverage || false }}
       hasCommitlint: ${{ steps.quality.outputs.hasCommitlint || false }}
 
-      coverage: ${{ steps.quality.outputs.coverage }}
+      cov_base: ${{ steps.quality.outputs.cov_base }}
+      cov_line: ${{ steps.quality.outputs.cov_line }}
+      cov_delta: ${{ steps.quality.outputs.cov_delta }}
+      cov_min: ${{ steps.quality.outputs.cov_min }}
+      cov_mode: ${{ steps.quality.outputs.cov_mode }}
+      cov_status: ${{ steps.quality.outputs.cov_status }}
+      cov_interpretation: ${{ steps.quality.outputs.cov_interpretation}}
+      cov_reason: ${{ steps.quality.outputs.cov_reason }}
+
       commitlint: ${{ steps.quality.outputs.commitlint }}
 
     steps:
@@ -137,8 +145,15 @@ jobs:
           core.setOutput("hasCoverage", hasCoverage);
           core.setOutput("hasCommitlint", hasCommit);
 
-          if (hasCoverage) {
-            core.setOutput("coverage", data.coverage);
+
+          core.setOutput("cov_base", data.coverage.base || 0);
+          core.setOutput("cov_line", data.coverage.line || 0);
+          core.setOutput("cov_delta", data.coverage.delta || 0);
+          core.setOutput("cov_min", data.coverage.min || 0);
+          core.setOutput("cov_mode", data.coverage.mode || '--');
+          core.setOutput("cov_status", data.coverage.status || 'missing');
+          core.setOutput("cov_interpretation", data.coverage.interpretation || 'Não disponível');
+          core.setOutput("cov_reason", data.coverage.reason || 'n/a');
           }
 
           if (hasCommit) {
@@ -257,16 +272,14 @@ jobs:
         log "COVERAGE_BLOCK: $COVERAGE_BLOCK"
 
         if [ "$COVERAGE_BLOCK" = "found" ]; then
-          COV_JSON='${{ needs.read-quality.outputs.coverage }}'
-          
-          COV_BASE=$(echo "$COV_JSON" | jq -r '.base' || 0) 
-          COV_LINE=$(echo "$COV_JSON" | jq -r '.line' || 0) 
-          COV_DELTA=$(echo "$COV_JSON" | jq -r '.delta' || 0) 
-          COV_MIN=$(echo "$COV_JSON" | jq -r '.min' || 0) 
-          COV_MODE=$(echo "$COV_JSON" | jq -r '.mode' || '--') 
-          COV_STATUS=$(echo "$COV_JSON" | jq -r '.status' || 'failed') 
-          COV_INTERPRETATION=$(echo "$COV_JSON" | jq -r '.interpretation' || 'Não disponível') 
-          COV_REASON=$(echo "$COV_JSON" | jq -r '.reason' || 'n/a')
+          COV_BASE="${{ needs.read-quality.outputs.cov_base }}"
+          COV_LINE="${{ needs.read-quality.outputs.cov_line }}"
+          COV_DELTA="${{ needs.read-quality.outputs.cov_delta }}"
+          COV_MIN="${{ needs.read-quality.outputs.cov_min }}"
+          COV_MODE="${{ needs.read-quality.outputs.cov_mode }}"
+          COV_STATUS="${{ needs.read-quality.outputs.cov_status }}"
+          COV_REASON="${{ needs.read-quality.outputs.cov_reason }}"
+          COV_INTERPRETATION="${{ needs.read-quality.outputs.cov_interpratation }}"
           
           if [ "$COV_STATUS" = "passed" ]; then
             STATUS_DISPLAY="✅"
@@ -328,11 +341,8 @@ jobs:
         TITLE=${TITLE//\{\{yyyy-MM-dd\}\}/$(date +'%Y-%m-%d')}
         TITLE=${TITLE//\{\{HEAD_BRANCH\}\}/$HEAD}
         TITLE=${TITLE//\{\{BASE_BRANCH\}\}/$BASE}
-
-        STATUS_COVERAGE="missing"
-        if [[ ${{ needs.read-quality.outputs.hasCoverage }} == "true" ]]; then
-          STATUS_COVERAGE="${{ fromJson(needs.read-quality.outputs.coverage).status }}"
-        fi
+        
+        STATUS_COVERAGE="${{ needs.read-quality.outputs.cov_status }}"
 
         if [ "$STATUS_COVERAGE" = "failed" ]; then
           ADD_LABEL="coverage-failed"
@@ -384,16 +394,14 @@ jobs:
     - name: 🧾 Job Summary
       if: always()
       run: |
-        COV_JSON='${{ needs.read-quality.outputs.coverage }}'
-        
-        COV_BASE=$(echo "$COV_JSON" | jq -r '.base' || 0) 
-        COV_LINE=$(echo "$COV_JSON" | jq -r '.line' || 0) 
-        COV_DELTA=$(echo "$COV_JSON" | jq -r '.delta' || 0) 
-        COV_MIN=$(echo "$COV_JSON" | jq -r '.min' || 0) 
-        COV_MODE=$(echo "$COV_JSON" | jq -r '.mode' || '--') 
-        COV_STATUS=$(echo "$COV_JSON" | jq -r '.status' || 'failed') 
-        COV_INTERPRETATION=$(echo "$COV_JSON" | jq -r '.interpretation' || 'Não disponível') 
-        COV_REASON=$(echo "$COV_JSON" | jq -r '.reason' || 'n/a')
+        COV_BASE="${{ needs.read-quality.outputs.cov_base }}"
+        COV_LINE="${{ needs.read-quality.outputs.cov_line }}"
+        COV_DELTA="${{ needs.read-quality.outputs.cov_delta }}"
+        COV_MIN="${{ needs.read-quality.outputs.cov_min }}"
+        COV_MODE="${{ needs.read-quality.outputs.cov_mode }}"
+        COV_STATUS="${{ needs.read-quality.outputs.cov_status }}"
+        COV_REASON="${{ needs.read-quality.outputs.cov_reason }}"
+        COV_INTERPRETATION="${{ needs.read-quality.outputs.cov_interpratation }}"
 
         if [ "$COV_STATUS" = "failed" ]; then
           STATUS_DISPLAY="❌"
