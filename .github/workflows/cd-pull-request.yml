@@ -87,14 +87,14 @@ jobs:
       hasCoverage: ${{ steps.quality.outputs.hasCoverage || false }}
       hasCommitlint: ${{ steps.quality.outputs.hasCommitlint || false }}
 
-      cov_base: ${{ steps.quality.outputs.cov_base }}
-      cov_line: ${{ steps.quality.outputs.cov_line }}
-      cov_delta: ${{ steps.quality.outputs.cov_delta }}
-      cov_min: ${{ steps.quality.outputs.cov_min }}
-      cov_mode: ${{ steps.quality.outputs.cov_mode }}
-      cov_status: ${{ steps.quality.outputs.cov_status }}
-      cov_interpretation: ${{ steps.quality.outputs.cov_interpretation}}
-      cov_reason: ${{ steps.quality.outputs.cov_reason }}
+      cov_base: ${{ steps.quality.outputs.cov_base || 0 }}
+      cov_line: ${{ steps.quality.outputs.cov_line || 0 }}
+      cov_delta: ${{ steps.quality.outputs.cov_delta || 0 }}
+      cov_min: ${{ steps.quality.outputs.cov_min || 0 }}
+      cov_mode: ${{ steps.quality.outputs.cov_mode || '--' }}
+      cov_status: ${{ steps.quality.outputs.cov_status || 'missing'}}
+      cov_reason: ${{ steps.quality.outputs.cov_reason || 'n/a' }}
+      cov_interpretation: ${{ steps.quality.outputs.cov_interpretation || 'Não disponível' }}
 
       commitlint: ${{ steps.quality.outputs.commitlint }}
 
@@ -145,15 +145,17 @@ jobs:
           core.setOutput("hasCoverage", hasCoverage);
           core.setOutput("hasCommitlint", hasCommit);
 
-          core.setOutput("cov_base", data.coverage.base || 0);
-          core.setOutput("cov_line", data.coverage.line || 0);
-          core.setOutput("cov_delta", data.coverage.delta || 0);
-          core.setOutput("cov_min", data.coverage.min || 0);
-          core.setOutput("cov_mode", data.coverage.mode || '--');
-          core.setOutput("cov_status", data.coverage.status || 'missing');
-          core.setOutput("cov_interpretation", data.coverage.interpretation || 'Não disponível');
-          core.setOutput("cov_reason", data.coverage.reason || 'n/a');
-          
+          if (hasCoverage) {
+            core.setOutput("cov_base", data.coverage.base);
+            core.setOutput("cov_line", data.coverage.line);
+            core.setOutput("cov_delta", data.coverage.delta);
+            core.setOutput("cov_min", data.coverage.min);
+            core.setOutput("cov_mode", data.coverage.mode);
+            core.setOutput("cov_status", data.coverage.status);
+            core.setOutput("cov_interpretation", data.coverage.interpretation);
+            core.setOutput("cov_reason", data.coverage.reason);
+          }
+
           if (hasCommit) {
             core.setOutput("commitlint", data.commitlint);
           }
