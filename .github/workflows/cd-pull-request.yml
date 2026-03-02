@@ -145,7 +145,6 @@ jobs:
           core.setOutput("hasCoverage", hasCoverage);
           core.setOutput("hasCommitlint", hasCommit);
 
-
           core.setOutput("cov_base", data.coverage.base || 0);
           core.setOutput("cov_line", data.coverage.line || 0);
           core.setOutput("cov_delta", data.coverage.delta || 0);
@@ -154,8 +153,7 @@ jobs:
           core.setOutput("cov_status", data.coverage.status || 'missing');
           core.setOutput("cov_interpretation", data.coverage.interpretation || 'Não disponível');
           core.setOutput("cov_reason", data.coverage.reason || 'n/a');
-          }
-
+          
           if (hasCommit) {
             core.setOutput("commitlint", data.commitlint);
           }
