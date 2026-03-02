@@ -241,7 +241,7 @@ jobs:
 
         STATUS_DISPLAY="➖"
         COVERAGE_BLOCK="missing"
-        HAS_COVERAGE=${{ needs.read-quality.outputs.hasCoverage }}
+        HAS_COVERAGE=true
 
         # Verifica se o template contém a chave para bloco de qualidade
         if [[ "$PR_TEMPLATE" == *"{{QUALITY_GATE_RESULT}}"* ]]; then
