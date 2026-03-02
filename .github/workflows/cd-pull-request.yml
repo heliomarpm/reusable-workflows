@@ -114,7 +114,7 @@ jobs:
             ref: sha
           });
 
-          const check = checks.data.check_runs.find(c => c.name === "actions-flow/quality");
+          const check = checks.data.check_runs.find(c => c.name === "reusable-workflows/quality");
 
           if (!check) {
             core.setOutput("hasQuality", false);
@@ -168,7 +168,7 @@ jobs:
     - name: 📌 Checkout reusable repository
       uses: actions/checkout@v4
       with:
-        repository: heliomarpm/actions-flow
+        repository: heliomarpm/reusable-workflows
         ref: main
         path: ${{ env.REUSABLE_PATH }}
         fetch-depth: 1

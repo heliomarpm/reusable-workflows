@@ -64,7 +64,7 @@ jobs:
     - name: 📌 Checkout reusable repository
       uses: actions/checkout@v4
       with:
-        repository: heliomarpm/actions-flow
+        repository: heliomarpm/reusable-workflows
         ref: main # ${{ github.ref }}
         path: ${{ env.REUSABLE_PATH }}
 
@@ -271,7 +271,7 @@ jobs:
           await github.rest.checks.create({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            name: "actions-flow/quality",
+            name: "reusable-workflows/quality",
             head_sha: context.sha,
             status: "completed",
             conclusion,
