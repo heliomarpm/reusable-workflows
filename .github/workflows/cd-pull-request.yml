@@ -221,11 +221,6 @@ jobs:
       if: needs.resolve-branch.outputs.skip != 'true'
       # working-directory: ${{ steps.path.outputs.value }}
       run: |
-        HAS_COVERAGE=${{ needs.read-quality.outputs.hasCoverage }}
-
-        log "Checking if coverage is required: $HAS_COVERAGE"
-        
-
         if [ -n "${{ inputs.pr_body_path }}" ]; then
           PR_BODY_PATH="${{ inputs.pr_body_path }}"
           log "Usando atributo \`pr_body_path\`: $PR_BODY_PATH"
@@ -246,6 +241,7 @@ jobs:
 
         STATUS_DISPLAY="➖"
         COVERAGE_BLOCK="missing"
+        HAS_COVERAGE=${{ needs.read-quality.outputs.hasCoverage }}
 
         # Verifica se o template contém a chave para bloco de qualidade
         if [[ "$PR_TEMPLATE" == *"{{QUALITY_GATE_RESULT}}"* ]]; then
@@ -259,62 +255,62 @@ jobs:
         fi
 
         log "COVERAGE_BLOCK: $COVERAGE_BLOCK"
-        exit 0
-        # if [ "$COVERAGE_BLOCK" = "found" ]; then
-        #   COV_BASE="${{ fromJson(needs.read-quality.outputs.coverage).base }}"
-        #   COV_LINE="${{ fromJson(needs.read-quality.outputs.coverage).line }}"
-        #   COV_DELTA="${{ fromJson(needs.read-quality.outputs.coverage).delta }}"
-        #   COV_MIN="${{ fromJson(needs.read-quality.outputs.coverage).min }}"
-        #   COV_STATUS="${{ fromJson(needs.read-quality.outputs.coverage).status }}"
-        #   COV_MODE="${{ fromJson(needs.read-quality.outputs.coverage).mode }}"
-        #   COV_REASON="${{ fromJson(needs.read-quality.outputs.coverage).reason }}"
-        #   COV_INTERPRETATION="${{ fromJson(needs.read-quality.outputs.coverage).interpretation }}"
+        
+        if [ "$COVERAGE_BLOCK" = "found" ]; then
+          COV_BASE="${{ fromJson(needs.read-quality.outputs.coverage).base }}"
+          COV_LINE="${{ fromJson(needs.read-quality.outputs.coverage).line }}"
+          COV_DELTA="${{ fromJson(needs.read-quality.outputs.coverage).delta }}"
+          COV_MIN="${{ fromJson(needs.read-quality.outputs.coverage).min }}"
+          COV_STATUS="${{ fromJson(needs.read-quality.outputs.coverage).status }}"
+          COV_MODE="${{ fromJson(needs.read-quality.outputs.coverage).mode }}"
+          COV_REASON="${{ fromJson(needs.read-quality.outputs.coverage).reason }}"
+          COV_INTERPRETATION="${{ fromJson(needs.read-quality.outputs.coverage).interpretation }}"
 
-        #   if [ "$COV_STATUS" = "passed" ]; then
-        #     STATUS_DISPLAY="✅"
-        #   else
-        #     STATUS_DISPLAY="❌"
-        #   fi
-        #   STATUS_DISPLAY+=" \`$COV_STATUS\`"
+          if [ "$COV_STATUS" = "passed" ]; then
+            STATUS_DISPLAY="✅"
+          else
+            STATUS_DISPLAY="❌"
+          fi
+          STATUS_DISPLAY+=" \`$COV_STATUS\`"
           
-        #   QUALITY_BLOCK=$(cat <<EOF
-        # ---
-        # ### $TITLE_BLOCK
+          QUALITY_BLOCK=$(cat <<EOF
+        ---
+        ### $TITLE_BLOCK
 
-        # > $COV_INTERPRETATION
+        > $COV_INTERPRETATION
 
-        # | Métrica | Valor  |
-        # |-------- |------- |
-        # | Branch Base  | **$COV_BASE%** |
-        # | Linhas  | **$COV_LINE%** |
-        # | Delta  | $COV_DELTA |
-        # | Mínimo requerido | $COV_MIN% |
-        # | Modo | \`$COV_MODE\` |
-        # | Status | $STATUS_DISPLAY |
+        | Métrica | Valor  |
+        |-------- |------- |
+        | Branch Base  | **$COV_BASE%** |
+        | Linhas  | **$COV_LINE%** |
+        | Delta  | $COV_DELTA |
+        | Mínimo requerido | $COV_MIN% |
+        | Modo | \`$COV_MODE\` |
+        | Status | $STATUS_DISPLAY |
 
-        # EOF
-        # )
-        # elif [ "$COVERAGE_BLOCK" = "not-found" ]; then
-        #   QUALITY_BLOCK=$(cat <<EOF
-        # ---
-        # ### $TITLE_BLOCK  
+        EOF
+        )
+        elif [ "$COVERAGE_BLOCK" = "not-found" ]; then
+          QUALITY_BLOCK=$(cat <<EOF
+        ---
+        ### $TITLE_BLOCK  
 
-        # > ⚠️ Cobertura não gerada para este projeto.
+        > ⚠️ Cobertura não gerada para este projeto.
 
-        # EOF
-        # )          
-        # else
-        #   QUALITY_BLOCK=""
-        # fi
+        EOF
+        )          
+        else
+          QUALITY_BLOCK=""
+        fi
 
-        # log "QUALITY_BLOCK: $QUALITY_BLOCK"
+        log "QUALITY_BLOCK: $QUALITY_BLOCK"
 
-        # # Substitui os placeholders 
-        # PR_TEMPLATE=${PR_TEMPLATE//\{\{HEAD_BRANCH\}\}/"${{ needs.resolve-branch.outputs.head }}"} 
-        # PR_TEMPLATE=${PR_TEMPLATE//\{\{BASE_BRANCH\}\}/"${{ needs.resolve-branch.outputs.base }}"} 
-        # PR_TEMPLATE=${PR_TEMPLATE//\{\{QUALITY_GATE_RESULT\}\}/"$QUALITY_BLOCK"} 
+        # Substitui os placeholders 
+        PR_TEMPLATE=${PR_TEMPLATE//\{\{HEAD_BRANCH\}\}/"${{ needs.resolve-branch.outputs.head }}"} 
+        PR_TEMPLATE=${PR_TEMPLATE//\{\{BASE_BRANCH\}\}/"${{ needs.resolve-branch.outputs.base }}"} 
+        PR_TEMPLATE=${PR_TEMPLATE//\{\{QUALITY_GATE_RESULT\}\}/"$QUALITY_BLOCK"} 
 
-        # echo "$PR_TEMPLATE" > pr_body.md
+        echo "$PR_TEMPLATE" > pr_body.md
 
     - name: 📜 Create or Update Pull Request
       id: create-pr
