@@ -4,8 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### 🔄 Other Changes
-- Update cd-pull-request.yml ([052ecfb](https://github.com/heliomarpm/reusable-workflows/commit/052ecfb2028dd2993dc166f491905637e41a88fb))
+### 🚀 Features
+- **template**: ✨ adicionar novos templates de issue ([90c7bb8](https://github.com/heliomarpm/reusable-workflows/commit/90c7bb85d1cf53ad7d99ad7770e6a2b78826180f))
+
+### 🐛 Bug Fixes
+- **action**: 🐛 corrigir template de título do Pull Request ([d7d7c6d](https://github.com/heliomarpm/reusable-workflows/commit/d7d7c6d7baf147088ebde80f3ee47b93b4b92dca))
 
 ## [v0.4.0] - 2026-10-09
 
