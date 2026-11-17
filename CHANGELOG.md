@@ -4,9 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### ♻️ Code Refactoring
-- **release**: ♻️ substituir prerelease-strategy por prerelease-incremental booleano ([dbcafb9](https://github.com/heliomarpm/reusable-workflows/commit/dbcafb92340238b8b5766f8ba0fec6a65a596b80))
-- **changelog**: ♻️ simplificar ciclo unreleased e remover commit-changelog ([7d45122](https://github.com/heliomarpm/reusable-workflows/commit/7d45122632d8ba17bae843bab55ffae5a2dafe48))
+### 🔄 Other Changes
+- Update cd-pull-request.yml ([052ecfb](https://github.com/heliomarpm/reusable-workflows/commit/052ecfb2028dd2993dc166f491905637e41a88fb))
 
 ## [v0.4.0] - 2026-10-09
 
