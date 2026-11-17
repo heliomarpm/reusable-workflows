@@ -11,7 +11,7 @@ inputs:
   pr-title:
     description: 'Title template for the Pull Request'
     required: false
-    default: '🔀 PR ({{yyyy-MM-dd}}): {{HEAD_BRANCH}} → {{BASE_BRANCH}}'
+    default: '🔀 PR ({{yyyy-MM-dd}}): {{BASE_BRANCH}} ← {{HEAD_BRANCH}}'
   pr_title:
     description: 'Title template for the Pull Request (alias)'
     required: false
@@ -87,7 +87,7 @@ runs:
         DATE="$(date +'%Y-%m-%d')"
 
         # 1. Resolve o título do Pull Request com interpolação de placeholders
-        DEFAULT_TITLE="🔀 PR ({{yyyy-MM-dd}}): {{HEAD_BRANCH}} → {{BASE_BRANCH}}"
+        DEFAULT_TITLE="🔀 PR ({{yyyy-MM-dd}}): {{BASE_BRANCH}} ← {{HEAD_BRANCH}}"
         RAW_TITLE="${INPUT_PR_TITLE:-$DEFAULT_TITLE}"
         TITLE="$RAW_TITLE"
         TITLE="${TITLE//\{\{yyyy-MM-dd\}\}/$DATE}"
