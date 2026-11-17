@@ -2,12 +2,11 @@ name: CD - Pull Request
 # run-name: "🔀 Auto PR: ${{ github.head_ref || github.ref_name }} → ${{ (github.head_ref == 'develop' || github.ref_name == 'develop') && 'main' || 'develop' }}"
 # run-name: "🔀 Auto PR: ${{ github.head_ref }} → ${{ startsWith(github.head_ref, 'hotfix/') && 'main' || (github.head_ref == 'develop' && 'main' || 'develop') }}"
 run-name: >-
-  🔀 Auto PR: (${{ github.head_ref || github.ref_name }} → ${{
+  🔀 Auto PR: (${{
     startsWith(github.head_ref || github.ref_name, 'hotfix') && 'main' ||
     (startsWith(github.head_ref || github.ref_name, 'release') && 'main' ||
     ((github.head_ref == 'develop' || github.ref_name == 'develop') && 'release-*' || 'develop'))
-  }}): ${{ github.event.head_commit.message || 'Disparo manual' }}
-
+  }} ← ${{ github.head_ref || github.ref_name }}): ${{ github.event.head_commit.message || 'Disparo manual' }}
 
 on:
   workflow_call:
